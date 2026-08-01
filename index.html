@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Калькулятор экономики спектакля: аренда, маркетинг, артисты, hotelling, IVA, Ticketmaster, сценарии и 25 Plotly-панелей." />
+  <title>Stage Economics — калькулятор спектакля</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Stage Economics</p>
+      <h1>Калькулятор экономики спектакля</h1>
+      <p class="subtitle">Формульная себестоимость, календарь кампании, коэффициент K, сценарии загрузки и 25 аналитических Plotly-панелей.</p>
+    </div>
+    <div class="top-actions">
+      <span class="status-pill">Roundup €0,10</span>
+      <span class="status-pill">216 сценариев</span>
+      <span class="status-pill">25 панелей</span>
+      <button id="exportProjectBtn" class="button secondary" type="button">Экспорт проекта</button>
+      <button id="importProjectBtn" class="button secondary" type="button">Импорт проекта</button>
+      <button id="clearDataBtn" class="button danger" type="button">Удалить данные</button>
+      <button id="resetBtn" class="button secondary" type="button">Сбросить поля</button>
+      <input id="projectFile" type="file" accept="application/json,.json" hidden />
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <aside class="controls" aria-label="Параметры калькулятора">
+      <section class="control-section">
+        <div class="section-heading">
+          <span>01</span><h2>Зал и дата</h2>
+        </div>
+        <label class="field">
+          <span>Аренда зала, €</span>
+          <input id="venueRent" type="number" min="0" step="0.1" value="8500" />
+        </label>
+        <label class="field">
+          <span>Тип аренды</span>
+          <select id="venueMode">
+            <option value="a">A — всё включено + IVA 21%</option>
+            <option value="b">B — всё включено без IVA</option>
+            <option value="c">C — только зал без IVA</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Мест в зале</span>
+          <input id="seats" type="number" min="1" step="1" value="600" />
+        </label>
+        <label class="field">
+          <span>Дата концерта</span>
+          <input id="concertDate" type="date" />
+        </label>
+        <label class="field">
+          <span>Начать рекламу за, дней</span>
+          <input id="daysToShow" type="number" min="0" step="1" value="60" />
+        </label>
+        <label class="field">
+          <span>Метод месячной ставки</span>
+          <select id="monthlyProrationMethod">
+            <option value="30">Стандарт: 30 дней</option>
+            <option value="average">Среднее: 365 / 12</option>
+            <option value="calendar">Фактические календарные месяцы</option>
+          </select>
+        </label>
+        <div class="date-summary" aria-live="polite">
+          <span>Старт рекламы</span>
+          <strong id="campaignStartDate">—</strong>
+          <small id="concertCountdown">—</small>
+          <small id="campaignDurationMeta">—</small>
+          <small id="campaignWarning" class="warning-text"></small>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <div class="section-heading">
+          <span>02</span><h2>Реклама</h2>
+        </div>
+        <label class="field">
+          <span>Работа рекламщиков в месяц, €</span>
+          <input id="agencyMonthly" type="number" min="0" step="0.1" value="1800" />
+        </label>
+        <label class="switch-row">
+          <input id="agencyIncludesIva" type="checkbox" checked />
+          <span>Ставка уже включает IVA 21%</span>
+        </label>
+        <div id="agencyRateDetails" class="rate-details" aria-live="polite">—</div>
+        <label class="field">
+          <span>Digital-реклама в день, €</span>
+          <input id="digitalDaily" type="number" min="0" step="0.1" value="45" />
+        </label>
+        <label class="switch-row">
+          <input id="digitalIncludesIva" type="checkbox" checked />
+          <span>Дневная ставка уже включает IVA 21%</span>
+        </label>
+        <div id="digitalRateDetails" class="rate-details" aria-live="polite">—</div>
+      </section>
+
+      <section class="control-section">
+        <div class="section-heading">
+          <span>03</span><h2>Артисты</h2>
+        </div>
+        <label class="field">
+          <span>Количество артистов</span>
+          <input id="artistCount" type="number" min="0" step="1" value="8" />
+        </label>
+        <label class="field">
+          <span>Brutto на артиста за спектакль, €</span>
+          <input id="artistShowFee" type="number" min="0" step="0.1" value="650" />
+        </label>
+        <label class="switch-row">
+          <input id="rehearsalEnabled" type="checkbox" checked />
+          <span>Оплачивать репетиции</span>
+        </label>
+        <label class="field dependency-rehearsal">
+          <span>Часов репетиции</span>
+          <input id="rehearsalHours" type="number" min="0" step="0.5" value="20" />
+        </label>
+        <label class="field dependency-rehearsal">
+          <span>Brutto на артиста за 1 час, €</span>
+          <input id="rehearsalHourlyFee" type="number" min="0" step="0.1" value="25" />
+        </label>
+      </section>
+
+      <section class="control-section">
+        <div class="section-heading">
+          <span>04</span><h2>Hotelling и комиссии</h2>
+        </div>
+        <label class="switch-row">
+          <input id="hotellingEnabled" type="checkbox" checked />
+          <span>Включить hotelling</span>
+        </label>
+        <label class="field dependency-hotelling">
+          <span>Hotelling, % билета без IVA</span>
+          <input id="hotellingRate" type="number" min="0" step="0.1" value="12" />
+        </label>
+        <label class="field">
+          <span>IVA билета, %</span>
+          <input id="ticketIvaRate" type="number" min="0" step="0.1" value="10" />
+        </label>
+        <label class="field">
+          <span>Ticketmaster, %</span>
+          <input id="tmRate" type="number" min="0" step="0.1" value="2.5" />
+        </label>
+        <label class="field">
+          <span>Основа Ticketmaster</span>
+          <select id="tmBase">
+            <option value="net">Цена без билетного IVA</option>
+            <option value="gross">Brutto-цена билета</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Доп. пакет расходов, €</span>
+          <input id="expensePackage" type="number" min="0" step="0.1" value="1000" />
+        </label>
+      </section>
+
+      <section class="control-section">
+        <div class="section-heading">
+          <span>05</span><h2>Аналитика</h2>
+        </div>
+        <label class="field">
+          <span>Коэффициент K</span>
+          <input id="kCoefficient" type="number" step="0.05" value="1.25" />
+          <div class="range-output-row">
+            <output id="kCoefficientOutput">K = 1,25</output>
+            <small id="kStatus">Идеальная зона</small>
+          </div>
+        </label>
+        <p class="field-help">K = цена билета ÷ динамическая цена безубыточности. Верхнего лимита нет. K=1 — ноль, K=1,25 — целевая цена.</p>
+        <div class="quick-buttons"><button type="button" class="mini-button k-preset" data-k="1">K=1</button><button type="button" class="mini-button k-preset" data-k="1.25">K=1,25</button></div>
+        <label class="switch-row">
+          <input id="useKPrice" type="checkbox" checked />
+          <span>Использовать цену, рассчитанную по K</span>
+        </label>
+        <label class="field dependency-manual-price">
+          <span>Ручная цена билета, €</span>
+          <div class="inline-input">
+            <input id="analysisBasePrice" type="number" min="0" step="0.1" value="35" />
+            <button id="useFormulaPrice" class="mini-button" type="button">Из формулы</button>
+          </div>
+        </label>
+        <div class="k-price-preview">
+          <span>Цена по K</span>
+          <strong id="kPricePreview">—</strong>
+          <small id="effectivePriceMeta">—</small>
+        </div>
+        <label class="field">
+          <span>Сетка сценариев</span>
+          <select id="scenarioGridMode">
+            <option value="k">По уровням K — рекомендуется</option>
+            <option value="price">Множители рабочей цены — legacy</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Базовая загрузка, %</span>
+          <input id="baseOccupancy" type="number" min="0" max="100" step="0.1" value="75" />
+        </label>
+        <label class="field">
+          <span>Чистый вклад напитка на гостя, €</span>
+          <input id="beverageContribution" type="number" min="0" step="0.1" value="2.5" />
+        </label>
+        <label class="field">
+          <span>Tornado-шок, %</span>
+          <input id="tornadoShock" type="number" min="0" max="100" step="1" value="10" />
+          <output id="tornadoShockOutput">10%</output>
+        </label>
+        <label class="switch-row">
+          <input id="autoUpdate" type="checkbox" checked />
+          <span>Автоматически обновлять графики</span>
+        </label>
+        <button id="recalculateBtn" class="button full" type="button">Пересчитать всё</button>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div id="validationBanner" class="validation-banner" hidden></div>
+
+      <section class="kpi-grid" aria-label="Основные результаты">
+        <article class="kpi-card primary">
+          <span>Формульная цена билета</span>
+          <strong id="kpiTicketPrice">—</strong>
+          <small>финальный brutto ÷ вместимость</small>
+        </article>
+        <article class="kpi-card">
+          <span>Финальный brutto</span>
+          <strong id="kpiFinalGross">—</strong>
+          <small>включая формульную надбавку</small>
+        </article>
+        <article class="kpi-card">
+          <span>Аренда с IVA</span>
+          <strong id="kpiVenueGross">—</strong>
+          <small id="kpiVenuePerSeat">— / место</small>
+        </article>
+        <article class="kpi-card">
+          <span>Весь маркетинг</span>
+          <strong id="kpiMarketing">—</strong>
+          <small id="kpiMarketingPerSeat">— / место</small>
+        </article>
+        <article class="kpi-card">
+          <span>Hotelling</span>
+          <strong id="kpiHotelling">—</strong>
+          <small id="kpiHotellingPerSeat">— / место</small>
+        </article>
+        <article class="kpi-card accent">
+          <span>Безубыточная цена</span>
+          <strong id="kpiDynamicBreakEven">—</strong>
+          <small id="kpiDynamicBreakEvenMeta">при выбранной загрузке</small>
+        </article>
+        <article class="kpi-card k-card">
+          <span>Рабочая цена по K</span>
+          <strong id="kpiKPrice">—</strong>
+          <small id="kpiKPriceMeta">—</small>
+        </article>
+      </section>
+
+      <section class="panel summary-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Расчёт</p>
+            <h2>Структура затрат</h2>
+          </div>
+          <span id="iterationStatus" class="status-pill soft">—</span>
+        </div>
+        <div class="summary-layout">
+          <div class="cost-table-wrap">
+            <table class="data-table compact">
+              <thead><tr><th>Компонент</th><th>Всего</th><th>На место</th></tr></thead>
+              <tbody id="costBreakdownBody"></tbody>
+              <tfoot id="costBreakdownFoot"></tfoot>
+            </table>
+          </div>
+          <div class="formula-box">
+            <h3>Формула финального brutto</h3>
+            <code>Direct + roundup₀․₁((0,03025 × Direct + 1,4641) / 1,06975)</code>
+            <p><strong>Direct</strong> включает аренду, маркетинг, артистов, репетиции, пакет расходов и hotelling.</p>
+            <p>Hotelling зависит от цены без билетного IVA. Приложение сначала аналитически проверяет существование конечного решения, затем использует защищённый дискретный решатель с шагом €0,10.</p>
+            <dl id="formulaDetails"></dl>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel occupancy-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Выбранные затраты и цена</p>
+            <h2>Загрузка зала от 0% до 100%</h2>
+          </div>
+          <div class="toolbar-actions">
+            <span id="occupancyTablePrice" class="status-pill soft">—</span>
+            <button id="exportOccupancyCsv" class="button secondary" type="button">CSV загрузки</button>
+          </div>
+        </div>
+        <p class="panel-note">Шаг 5%. Расчёт использует текущие затраты, выбранную цену билета, IVA, Ticketmaster, hotelling и доход от напитков.</p>
+        <div class="occupancy-table-wrap">
+          <table class="data-table sticky">
+            <thead>
+              <tr>
+                <th>Целевая загрузка</th><th>Фактическая загрузка</th><th>Продано мест</th><th>Цена билета</th><th>K факт</th><th>Выручка brutto</th><th>IVA</th><th>Ticketmaster</th><th>Hotelling</th><th>Фиксированные расходы</th><th>Переменные расходы</th><th>Все расходы</th><th>Netto-выручка</th><th>Остаток</th><th>Маржа</th>
+              </tr>
+            </thead>
+            <tbody id="occupancyTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel scenario-toolbar">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Сценарии</p>
+            <h2>Все прибыльные + 12 ближайших к нулю убыточных</h2>
+          </div>
+          <div class="toolbar-actions">
+            <button id="exportCsvCurrent" class="button secondary" type="button">CSV текущей выборки</button>
+            <button id="exportCsvAll" class="button secondary" type="button">CSV всех сценариев</button>
+          </div>
+        </div>
+        <div class="filters">
+          <label><span>Цена</span><select id="filterPrice"><option value="all">Все</option></select></label>
+          <label><span>Загрузка</span><select id="filterOccupancy"><option value="all">Все</option></select></label>
+          <label><span>Результат</span><select id="filterResult"><option value="all">Все</option><option value="positive">Положительный</option><option value="negative">Отрицательный</option></select></label>
+          <label><span>ID</span><input id="filterId" type="search" placeholder="P1…P216" /></label>
+        </div>
+        <div class="table-meta">
+          <span id="scenarioCount">—</span>
+          <span id="selectedScenarioLabel">Текущий сценарий: —</span>
+          <span id="sortStatus">Сортировка: остаток ↓</span>
+        </div>
+        <p class="panel-note importance-note"><strong>Приоритет колонок:</strong> <span class="priority-badge p1">1</span> остаток, <span class="priority-badge p2">2</span> маржа, <span class="priority-badge p3">3</span> K. Нажмите заголовок для сортировки; повторное нажатие меняет направление.</p>
+        <div class="scenario-table-wrap">
+          <table class="data-table sticky">
+            <thead>
+              <tr>
+                <th><button class="sort-button" data-sort="id">ID</button></th><th><button class="sort-button" data-sort="price">Цена</button></th><th><button class="sort-button" data-sort="targetK">K сетки</button></th><th><button class="sort-button priority p3" data-sort="k">K факт <span>3</span></button></th><th><button class="sort-button" data-sort="occupancy">Загрузка</button></th><th><button class="sort-button" data-sort="tickets">Гостей</button></th><th><button class="sort-button" data-sort="feeMultiplier">Гонорар ×</button></th><th><button class="sort-button" data-sort="packageMultiplier">Пакет ×</button></th><th><button class="sort-button" data-sort="directCosts">Прямые расходы</button></th><th><button class="sort-button" data-sort="grossRevenue">Выручка brutto</button></th><th><button class="sort-button priority p1 active" data-sort="operatingBalance">Остаток <span>1</span></button></th><th><button class="sort-button priority p2" data-sort="margin">Маржа <span>2</span></button></th><th><button class="sort-button" data-sort="mcdaMeanRank">MCDA</button></th>
+              </tr>
+            </thead>
+            <tbody id="scenarioTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel recommendations-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Рекомендации</p>
+            <h2>Цены по уровням загрузки</h2>
+          </div>
+        </div>
+        <div id="recommendationCards" class="recommendation-grid"></div>
+      </section>
+
+      <section class="panel mcda-panel">
+        <div class="panel-header">
+          <div><p class="eyebrow">MCDA</p><h2>Импорт исходной матрицы</h2></div>
+          <div class="toolbar-actions">
+            <button id="importMcdaBtn" class="button secondary" type="button">Импорт MCDA</button>
+            <button id="clearMcdaBtn" class="button secondary" type="button">Вернуть proxy</button>
+            <input id="mcdaFile" type="file" accept="application/json,.json,text/csv,.csv" hidden />
+          </div>
+        </div>
+        <p id="mcdaStatus" class="panel-note">Используется резервный proxy: 25 детерминированных прогонов по 5 критериям.</p>
+        <details><summary>Поддерживаемые форматы</summary><p>JSON weights: <code>{"type":"weights","runs":[25 массивов по 5 весов]}</code>. JSON ranks: <code>{"type":"ranks","rows":[{"id":"P1","ranks":[25 рангов]}]}</code>. CSV weights: 25 строк × 5 чисел.</p></details>
+      </section>
+
+      <section class="analytics-heading">
+        <div>
+          <p class="eyebrow">Plotly analytics</p>
+          <h2>24 модуля · 25 панелей · контроль NaN/Infinity</h2>
+        </div>
+        <p>Hover, zoom, legend toggles, PNG export и выбор сценария кликом по scatter-точке.</p>
+      </section>
+
+      <section id="chartsGrid" class="charts-grid" aria-label="Аналитические графики"></section>
+
+      <section class="panel catalog-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Каталог</p>
+            <h2>Методика аналитических панелей</h2>
+          </div>
+        </div>
+        <div class="catalog-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Панель</th><th>Назначение</th><th>Trend line</th><th>Reference lines</th><th>Интерактивность</th></tr></thead>
+            <tbody id="catalogBody"></tbody>
+          </table>
+        </div>
+        <div id="mcdaMethodNote" class="method-note">
+          <strong>MCDA:</strong> используется явно обозначенный резервный proxy. Импортированная валидная матрица автоматически заменяет proxy.
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer>
+    <span>Все денежные затраты округляются вверх до €0,10.</span>
+    <span>Данные остаются в браузере; сервер не требуется.</span>
+  </footer>
+
+  <script src="plotly.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
