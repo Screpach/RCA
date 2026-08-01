@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Producer OS — Hall & Ticketing</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="appRoot" class="app-root">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">Версия модели 2.0</div>
+        <h1>Универсальный калькулятор цен для залов</h1>
+        <p>Настройте вместимость, зоны, структуру цен, заполняемость, комиссии и целевую выручку. Программа сохраняет проекты, экспортирует расчёты и поддерживает большие конфигурации залов.</p>
+      </div>
+      <button id="openHelpBtn" class="btn btn-light" type="button">Справка по параметрам</button>
+    </header>
+
+    <section class="card project-card" aria-labelledby="projectsTitle">
+      <div class="section-header">
+        <div>
+          <h2 id="projectsTitle">Проекты и файлы</h2>
+          <p class="muted">Полный проект сохраняет зал, зоны, цены, заполняемость и комиссии. Шаблон зала сохраняет только структуру мест.</p>
+        </div>
+        <div id="autosaveStatus" class="status-chip" role="status">Автосохранение: ожидание</div>
+      </div>
+
+      <div class="project-grid">
+        <label class="field">
+          <span>Название проекта</span>
+          <input id="projectName" type="text" value="Новый проект" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Сохранённые проекты</span>
+          <select id="savedProjects"><option value="">— нет сохранённых проектов —</option></select>
+        </label>
+        <div class="button-group align-end">
+          <button id="saveProjectBtn" class="btn" type="button">Сохранить проект</button>
+          <button id="loadProjectBtn" class="btn btn-secondary" type="button">Загрузить</button>
+          <button id="deleteProjectBtn" class="btn btn-danger-soft" type="button">Удалить</button>
+        </div>
+      </div>
+
+      <div class="project-grid compact-top">
+        <label class="field">
+          <span>Сохранённые шаблоны залов</span>
+          <select id="savedHalls"><option value="">— нет сохранённых залов —</option></select>
+        </label>
+        <div class="button-group align-end">
+          <button id="saveHallBtn" class="btn btn-secondary" type="button">Сохранить конфигурацию зала</button>
+          <button id="loadHallBtn" class="btn btn-secondary" type="button">Загрузить зал</button>
+          <button id="deleteHallBtn" class="btn btn-danger-soft" type="button">Удалить зал</button>
+        </div>
+        <div class="button-group align-end">
+          <button id="exportJsonBtn" class="btn btn-secondary" type="button">Экспорт JSON</button>
+          <button id="importJsonBtn" class="btn btn-secondary" type="button">Импорт JSON</button>
+          <input id="importJsonInput" type="file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+      <div id="storageMessage" class="inline-message hidden" role="status"></div>
+    </section>
+
+    <section class="card hall-card" aria-labelledby="hallTitle">
+      <div class="section-header">
+        <div>
+          <h2 id="hallTitle">Конфигуратор зала</h2>
+          <p class="muted">Места должны быть целыми и неотрицательными. Искусственных верхних ограничений нет; очень большие проекты отображаются виртуально.</p>
+        </div>
+        <div class="button-group">
+          <button id="addZoneBtn" class="btn" type="button">Добавить зону</button>
+          <button id="undoDeleteBtn" class="btn btn-secondary" type="button" disabled>Отменить удаление</button>
+          <button id="equalSeatsBtn" class="btn btn-secondary" type="button">Распределить места поровну</button>
+          <button id="auditoriPresetBtn" class="btn btn-secondary" type="button">Рабочий пример L’Auditori</button>
+        </div>
+      </div>
+
+      <div class="hall-fields">
+        <label class="field wide">
+          <span>Название зала</span>
+          <input id="hallName" type="text" value="Новый зал" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Всего мест в зале</span>
+          <input id="hallCapacity" type="text" inputmode="numeric" value="1000">
+        </label>
+        <label class="field">
+          <span>Режим вместимости</span>
+          <select id="capacityMode">
+            <option value="strict">Строгий: расчёт только при совпадении</option>
+            <option value="free">Свободный: считать по сумме зон</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Количество зон</span>
+          <div class="inline-control">
+            <input id="zoneCount" type="text" inputmode="numeric" value="5">
+            <button id="applyZoneCountBtn" class="btn btn-secondary" type="button">Применить</button>
+          </div>
+        </label>
+      </div>
+
+      <div class="oversell-row">
+        <label class="check-field">
+          <input id="oversellingEnabled" type="checkbox">
+          <span>Разрешить продажи сверх номинальной вместимости</span>
+        </label>
+        <label id="oversellPercentWrap" class="field inline-narrow disabled-block">
+          <span>Дополнительный лимит продаж, %</span>
+          <input id="oversellPercent" type="text" inputmode="decimal" value="0" disabled>
+        </label>
+        <p class="muted">Заполняемость остаётся в диапазоне 0–100%. При включённом режиме 100% относится к увеличенной продаваемой вместимости.</p>
+      </div>
+
+      <div class="capacity-summary" aria-live="polite">
+        <div class="mini-card"><span>Заявлено мест</span><strong id="hallCapacityStatus">—</strong></div>
+        <div class="mini-card"><span>Распределено по зонам</span><strong id="zoneCapacityStatus">—</strong></div>
+        <div class="mini-card"><span>Разница</span><strong id="capacityDifferenceStatus">—</strong></div>
+        <div class="mini-card"><span>Продаваемая вместимость</span><strong id="sellableCapacityStatus">—</strong></div>
+      </div>
+      <div id="capacityWarning" class="inline-message warning hidden" role="alert"></div>
+      <div class="preset-note">
+        <strong>Статус пресета L’Auditori:</strong> рабочая пользовательская реконструкция на основе <a href="https://ibercamera.koobin.com/heroica-de-beethoven_ca" target="_blank" rel="noopener noreferrer">билетной схемы Ibercamera</a>, проверенной 10.07.2026. Это не официальный технический паспорт зала; перед коммерческим использованием цифры следует подтвердить у площадки.
+      </div>
+
+      <div class="table-shell">
+        <div id="configViewport" class="table-viewport config-viewport" tabindex="0" aria-label="Таблица конфигурации зон">
+          <table class="data-table config-table">
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Название зоны</th>
+                <th>Мест</th>
+                <th>Ценовой индекс</th>
+                <th>Ручной коэффициент</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="configBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="muted table-note">При изменении количества зон ценовые индексы всех зон перераспределяются равномерно от 100 до 0. Для сохранения старой версии сначала экспортируйте проект или сохраните его.</p>
+    </section>
+
+    <main class="workspace">
+      <aside class="card controls-card" aria-label="Параметры расчёта">
+        <section class="control-section">
+          <h2>1. Ценовая модель</h2>
+          <label class="field">
+            <span>Метод расчёта</span>
+            <select id="pricingModel">
+              <option value="average">По целевой средней цене</option>
+              <option value="gross">По целевой сумме</option>
+              <option value="minmax" selected>По минимуму и максимуму</option>
+              <option value="minimum">Только по минимальной цене</option>
+              <option value="maximum">Только по максимальной цене</option>
+              <option value="manual">Ручные цены по зонам</option>
+            </select>
+          </label>
+
+          <div id="averageModelBlock" class="model-block hidden">
+            <label class="field">
+              <span>Целевая средняя цена, €</span>
+              <input id="averageTarget" type="text" inputmode="decimal" value="80">
+            </label>
+            <label class="field">
+              <span>Что должна означать средняя цена</span>
+              <select id="averageScope">
+                <option value="base">Средняя базовая цена по активным местам</option>
+                <option value="customer">Средняя итоговая цена покупателя по ожидаемым продажам</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="grossModelBlock" class="model-block hidden">
+            <label class="field">
+              <span>Целевая сумма, €</span>
+              <input id="grossTarget" type="text" inputmode="decimal" value="75000">
+            </label>
+            <label class="field">
+              <span>Какая сумма является целью</span>
+              <select id="grossMetric">
+                <option value="totalPaid">Всего заплатят покупатели</option>
+                <option value="ticketRevenue">Номинальная билетная выручка</option>
+                <option value="organizer">Сумма организатора до налогов</option>
+              </select>
+            </label>
+            <div class="info-box">Внешняя наценка или скидка применяется <strong>после</strong> подбора цен под цель. Поэтому итоговая сумма может намеренно отличаться от цели.</div>
+          </div>
+
+          <div id="minmaxModelBlock" class="model-block">
+            <div class="two-col">
+              <label class="field"><span>Минимальная цена, €</span><input id="minimumPrice" type="text" inputmode="decimal" value="30"></label>
+              <label class="field"><span>Максимальная цена, €</span><input id="maximumPrice" type="text" inputmode="decimal" value="120"></label>
+            </div>
+            <label class="field">
+              <span>К чему относятся границы</span>
+              <select id="boundaryScope">
+                <option value="base">К базовым ценам</option>
+                <option value="customer">К итоговым ценам покупателя</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="minimumModelBlock" class="model-block hidden">
+            <label class="field"><span>Минимальная цена, €</span><input id="minimumOnly" type="text" inputmode="decimal" value="30"></label>
+            <label class="field">
+              <span>К чему относится цена</span>
+              <select id="minimumScope">
+                <option value="base">К базовой цене</option>
+                <option value="customer">К итоговой цене покупателя</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="maximumModelBlock" class="model-block hidden">
+            <label class="field"><span>Максимальная цена, €</span><input id="maximumOnly" type="text" inputmode="decimal" value="120"></label>
+            <label class="field">
+              <span>К чему относится цена</span>
+              <select id="maximumScope">
+                <option value="base">К базовой цене</option>
+                <option value="customer">К итоговой цене покупателя</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="manualModelBlock" class="model-block hidden">
+            <label class="field">
+              <span>Что вводится вручную</span>
+              <select id="manualPriceMode">
+                <option value="base">Базовая цена зоны</option>
+                <option value="customer">Окончательная цена покупателя</option>
+              </select>
+            </label>
+            <button id="clearManualPricesBtn" class="btn btn-danger-soft full-width" type="button">Очистить ручные цены</button>
+          </div>
+
+          <div id="singleZoneBlock" class="model-block hidden">
+            <label class="field">
+              <span>Цена единственной активной зоны, €</span>
+              <input id="singleZonePrice" type="text" inputmode="decimal" value="75">
+            </label>
+            <p class="muted">Используется вместо MIN, MAX или диапазона, когда активна только одна зона.</p>
+          </div>
+
+          <div id="flatLevelBlock" class="model-block hidden">
+            <label class="field">
+              <span>Цена единого ценового уровня, €</span>
+              <input id="flatLevelPrice" type="text" inputmode="decimal" value="75">
+            </label>
+            <p class="muted">Все активные зоны имеют одинаковый индекс или коэффициент, поэтому рассматриваются как один уровень.</p>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>2. Структура цен</h2>
+          <label class="field">
+            <span>Ценовая кривая</span>
+            <select id="curveMode">
+              <option value="linear">Линейная</option>
+              <option value="geometric">Геометрическая</option>
+              <option value="power">Степенная</option>
+              <option value="manualCoefficient">Ручные коэффициенты зон</option>
+            </select>
+          </label>
+          <label id="powerExponentWrap" class="field hidden">
+            <span>Степень кривой</span>
+            <input id="powerExponent" type="text" inputmode="decimal" value="1.5">
+          </label>
+          <label id="premiumRatioWrap" class="field">
+            <span>Соотношение дорогой и дешёвой зоны, ×</span>
+            <input id="premiumRatio" type="text" inputmode="decimal" value="3.3">
+          </label>
+          <label class="field">
+            <span>Поведение ценового индекса</span>
+            <select id="indexMode">
+              <option value="renormalize">Переносить MIN и MAX на крайние активные зоны</option>
+              <option value="fixed">Использовать индекс как фиксированный процент диапазона</option>
+            </select>
+          </label>
+          <label class="check-field">
+            <input id="allowPriceCrossing" type="checkbox">
+            <span>Разрешить дорогой зоне стать дешевле дешёвой</span>
+          </label>
+          <p class="muted">Когда пересечение запрещено, программа применяет монотонное выравнивание итоговых цен.</p>
+        </section>
+
+        <section class="control-section">
+          <h2>3. Заполняемость и спрос</h2>
+          <div class="segmented" id="occupancyModeControls">
+            <button type="button" data-occupancy-mode="overall" class="active">Одна для всех зон</button>
+            <button type="button" data-occupancy-mode="zones">По каждой зоне</button>
+          </div>
+          <label id="overallOccupancyWrap" class="field compact-top">
+            <span>Ожидаемая заполняемость <button class="info-icon" type="button" data-help-topic="occupancy" aria-label="Справка: ожидаемая заполняемость">?</button></span>
+            <div class="range-pair">
+              <input id="overallOccupancyRange" type="range" min="0" max="100" step="1" value="75">
+              <input id="overallOccupancy" type="text" inputmode="decimal" value="75">
+            </div>
+          </label>
+
+          <div id="dynamicPricingGroup">
+            <label class="field">
+              <span>Опорная заполняемость, % <button class="info-icon" type="button" data-help-topic="reference" aria-label="Справка: опорная заполняемость">?</button></span>
+              <input id="referenceOccupancy" type="text" inputmode="decimal" value="70">
+            </label>
+            <label class="field">
+              <span>Чувствительность динамической цены β <button class="info-icon" type="button" data-help-topic="beta" aria-label="Справка: чувствительность динамической цены">?</button></span>
+              <div class="range-pair">
+                <input id="betaRange" type="range" min="0" max="4" step="0.05" value="0.8">
+                <input id="beta" type="text" inputmode="decimal" value="0.8">
+              </div>
+            </label>
+            <div id="dynamicIneffectiveNote" class="info-box hidden">При одинаковой заполняемости всех зон динамика меняет внутреннюю базу, но не распределение итоговой целевой суммы. Реальное перераспределение возникает только при разной заполняемости зон.</div>
+          </div>
+
+          <label class="check-field compact-top">
+            <input id="elasticityEnabled" type="checkbox">
+            <span>Профессиональная модель ценовой эластичности спроса</span>
+          </label>
+          <div id="elasticityBlock" class="model-block hidden">
+            <label class="field">
+              <span>Эластичность спроса ε</span>
+              <input id="elasticity" type="text" inputmode="decimal" value="0.6">
+            </label>
+            <p class="muted">Ожидаемая заполняемость считается базовым спросом при базовой цене. Повышение итоговой цены уменьшает спрос, снижение увеличивает его. Расчёт выполняется итеративно.</p>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <h2>4. Округление, наценка и комиссии</h2>
+          <label class="field">
+            <span>Шаг округления, € <button class="info-icon" type="button" data-help-topic="rounding" aria-label="Справка: шаг округления">?</button></span>
+            <input id="roundingStep" type="text" inputmode="decimal" value="2">
+          </label>
+          <label class="field">
+            <span>Внешняя наценка / скидка, % <button class="info-icon" type="button" data-help-topic="adjustment" aria-label="Справка: наценка или скидка">?</button></span>
+            <input id="externalAdjustment" type="text" inputmode="decimal" value="0">
+          </label>
+          <label class="field">
+            <span>Сервисный сбор покупателя за билет, € <button class="info-icon" type="button" data-help-topic="fee" aria-label="Справка: сервисный сбор">?</button></span>
+            <input id="buyerFee" type="text" inputmode="decimal" value="0">
+          </label>
+          <label class="check-field">
+            <input id="buyerFeeRetained" type="checkbox">
+            <span>Сервисный сбор остаётся организатору</span>
+          </label>
+          <div class="two-col compact-top">
+            <label class="field"><span>Комиссия платформы, % от билета</span><input id="platformPercent" type="text" inputmode="decimal" value="0"></label>
+            <label class="field"><span>Фиксированная комиссия платформы, €</span><input id="platformFixed" type="text" inputmode="decimal" value="0"></label>
+          </div>
+        </section>
+
+        <section class="control-section no-border">
+          <h2>5. Сброс и экспорт</h2>
+          <div class="button-grid">
+            <button id="resetPricingBtn" class="btn btn-secondary" type="button">Сбросить параметры цены</button>
+            <button id="resetOccupancyBtn" class="btn btn-secondary" type="button">Сбросить заполняемость</button>
+            <button id="enableAllBtn" class="btn btn-secondary" type="button">Включить все зоны</button>
+            <button id="resetScenarioBtn" class="btn btn-danger-soft" type="button">Сбросить весь сценарий</button>
+            <button id="exportCsvBtn" class="btn" type="button">Экспорт CSV</button>
+          </div>
+          <div id="calculationWarning" class="inline-message warning hidden" role="alert"></div>
+        </section>
+      </aside>
+
+      <section class="results-column" aria-label="Результаты расчёта">
+        <section class="metrics-grid" aria-live="polite">
+          <article class="metric-card"><span>Ожидаемые продажи</span><strong id="metricSold">—</strong><small id="metricSoldFull">—</small></article>
+          <article class="metric-card"><span>Номинальная билетная выручка</span><strong id="metricTicketRevenue">—</strong><small id="metricTicketRevenueFull">—</small></article>
+          <article class="metric-card"><span>Сервисные сборы покупателей</span><strong id="metricBuyerFees">—</strong><small id="metricBuyerFeesFull">—</small></article>
+          <article class="metric-card"><span>Всего заплатят покупатели</span><strong id="metricTotalPaid">—</strong><small id="metricTotalPaidFull">—</small></article>
+          <article class="metric-card"><span>Комиссия платформы</span><strong id="metricPlatformCommission">—</strong><small id="metricPlatformCommissionFull">—</small></article>
+          <article class="metric-card"><span>Организатору до налогов</span><strong id="metricOrganizer">—</strong><small id="metricOrganizerFull">—</small></article>
+          <article class="metric-card"><span>Средняя цена покупателя</span><strong id="metricAveragePrice">—</strong><small id="metricAveragePriceFull">—</small></article>
+          <article class="metric-card"><span>Активная продаваемая вместимость</span><strong id="metricActiveCapacity">—</strong><small id="metricActiveCapacityFull">—</small></article>
+        </section>
+
+        <section class="card target-card hidden" id="targetResultCard">
+          <div>
+            <span class="muted">Целевая сумма до внешней корректировки</span>
+            <strong id="targetRequested">—</strong>
+          </div>
+          <div>
+            <span class="muted">Получено до внешней корректировки</span>
+            <strong id="targetAchieved">—</strong>
+          </div>
+          <div>
+            <span class="muted">Минимально достижимая сумма</span>
+            <strong id="targetMinimum">—</strong>
+          </div>
+          <div>
+            <span class="muted">Отклонение после внешней корректировки</span>
+            <strong id="targetFinalDelta">—</strong>
+          </div>
+        </section>
+
+        <section class="card pricing-card">
+          <div class="section-header pricing-header">
+            <div>
+              <h2>Цены и продажи по зонам</h2>
+              <p id="pricingTableHint" class="muted">Расчёт выполняется автоматически.</p>
+            </div>
+            <div class="button-group">
+              <button id="copyToManualBtn" class="btn btn-secondary" type="button">Перенести текущие цены в ручной режим</button>
+              <button id="disableAllBtn" class="btn btn-secondary" type="button">Отключить все зоны</button>
+            </div>
+          </div>
+          <div class="table-shell">
+            <div id="pricingViewport" class="table-viewport pricing-viewport" tabindex="0" aria-label="Таблица цен и продаж по зонам">
+              <table class="data-table pricing-table">
+                <thead>
+                  <tr>
+                    <th>Вкл.</th>
+                    <th>Зона</th>
+                    <th>Мест</th>
+                    <th>Продаваемых мест</th>
+                    <th>Заполняемость</th>
+                    <th>Продано</th>
+                    <th>Базовая цена</th>
+                    <th>Коэф. спроса</th>
+                    <th>Цена билета</th>
+                    <th>Сбор</th>
+                    <th>Цена покупателя</th>
+                    <th>Выручка зоны</th>
+                  </tr>
+                </thead>
+                <tbody id="pricingBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="card details-card">
+          <details>
+            <summary>Порядок расчёта и формулы</summary>
+            <div class="formula-block">1. Формируется базовая ценовая лестница.
+2. Применяется динамический коэффициент exp[β × (O − Oref)].
+3. При включённой эластичности спрос и цена уточняются итеративно.
+4. В режиме целевой суммы сначала подбирается цена под цель, затем применяется внешняя корректировка.
+5. Цена округляется выбранным шагом.
+6. Добавляется сервисный сбор покупателя.
+7. Ожидаемые целые продажи распределяются методом наибольших остатков.
+8. Рассчитываются билетная выручка, сборы, комиссия платформы и сумма организатора.</div>
+          </details>
+        </section>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Модель расчёта 2.0 · автономное приложение · данные сохраняются локально в браузере</span>
+    </footer>
+  </div>
+
+  <div id="helpModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal large-modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="helpTitle">Справка по параметрам</h2>
+          <p>Практическое объяснение назначения параметров и порядка расчёта.</p>
+        </div>
+        <button class="modal-close" type="button" data-close-modal="helpModal" aria-label="Закрыть справку">×</button>
+      </div>
+      <div class="modal-body help-body">
+        <details class="help-item" data-help-section="occupancy" open>
+          <summary>Ожидаемая заполняемость</summary>
+          <div>
+            <p><strong>Что это:</strong> прогноз доли продаваемой вместимости, которая будет реализована. При включённом overselling 100% относится к увеличенной продаваемой вместимости.</p>
+            <pre>Ожидаемые продажи = продаваемые места × заполняемость / 100</pre>
+            <p><strong>Зачем нужна:</strong> определяет количество билетов, прогноз выручки и исходный уровень спроса для динамической цены. В модели целевой суммы меньшая заполняемость обычно требует более высокой средней цены.</p>
+            <p><strong>Пример:</strong> 200 продаваемых мест × 75% = 150 ожидаемых продаж.</p>
+          </div>
+        </details>
+        <details class="help-item" data-help-section="reference">
+          <summary>Опорная заполняемость, %</summary>
+          <div>
+            <p><strong>Что это:</strong> точка отсчёта, при которой коэффициент динамической цены равен 1,00.</p>
+            <ul><li>ожидаемая выше опорной — цена растёт;</li><li>ожидаемая ниже опорной — цена снижается;</li><li>значения равны — базовая цена не меняется.</li></ul>
+            <p>Опорная заполняемость не определяет число продаж; она только задаёт нейтральный уровень для динамической корректировки.</p>
+          </div>
+        </details>
+        <details class="help-item" data-help-section="beta">
+          <summary>Чувствительность динамической цены β</summary>
+          <div>
+            <p><strong>Что это:</strong> сила реакции цены на разницу между ожидаемой и опорной заполняемостью.</p>
+            <pre>F = exp[β × (O − Oref)]
+Динамическая цена = базовая цена × F</pre>
+            <p>β = 0 отключает динамику. Значения 0,3–0,5 дают слабую реакцию, 0,6–1,0 — умеренную, выше 1 — сильную.</p>
+            <p><strong>Важно для целевой суммы:</strong> если все зоны имеют одинаковую заполняемость, общий динамический множитель компенсируется подбором базовой цены. Реальное перераспределение между зонами появляется, когда их заполняемость различается.</p>
+          </div>
+        </details>
+        <details class="help-item" data-help-section="rounding">
+          <summary>Шаг округления, €</summary>
+          <div>
+            <p><strong>Что это:</strong> интервал, к которому приводится рассчитанная цена.</p>
+            <pre>Округлённая цена = шаг × ROUND(цена / шаг)</pre>
+            <p>73,40 € округляется до 73,50 € при шаге 0,50; до 74 € при шаге 2; до 75 € при шаге 5. Большой шаг упрощает сетку, но увеличивает отклонение от цели.</p>
+          </div>
+        </details>
+        <details class="help-item" data-help-section="adjustment">
+          <summary>Внешняя наценка / скидка, %</summary>
+          <div>
+            <p><strong>Что это:</strong> единая корректировка всех рассчитанных цен. Положительное значение — наценка, отрицательное — скидка. Скидка не может быть ниже −100%.</p>
+            <pre>Цена после корректировки = цена × (1 + процент / 100)</pre>
+            <p>В модели целевой суммы корректировка применяется после достижения цели. Это позволяет увидеть, как промоакция или дополнительная наценка изменит окончательный результат.</p>
+          </div>
+        </details>
+        <details class="help-item" data-help-section="fee">
+          <summary>Сервисный сбор на билет, €</summary>
+          <div>
+            <p><strong>Что это:</strong> фиксированная сумма, добавляемая к каждому проданному билету после округления основной цены.</p>
+            <pre>Цена покупателя = цена билета + сервисный сбор</pre>
+            <p>Сбор может покрывать билетную платформу, обработку платежа или обслуживание заказа. Отдельный флажок определяет, остаётся ли он организатору. Комиссия платформы рассчитывается отдельно.</p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Ценовой индекс и режим переноса границ</summary>
+          <div>
+            <p><strong>Ценовой индекс</strong> — положение зоны в диапазоне от дешёвой к дорогой. Это не буквальный процент цены.</p>
+            <p>В режиме перенормирования крайние активные зоны всегда получают MIN и MAX. В фиксированном режиме индекс 20 означает 20% исходного диапазона независимо от отключения других зон.</p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Ценовые кривые</summary>
+          <div>
+            <ul>
+              <li><strong>Линейная:</strong> равномерный прирост цены.</li>
+              <li><strong>Геометрическая:</strong> равномерное отношение между уровнями; полезно при большом диапазоне.</li>
+              <li><strong>Степенная:</strong> управляемая выпуклость через показатель степени.</li>
+              <li><strong>Ручные коэффициенты:</strong> относительный вес каждой зоны вводится в конфигураторе.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Профессиональная эластичность спроса</summary>
+          <div>
+            <p>Ожидаемая заполняемость становится базовым спросом при базовой цене. Если окончательная цена повышается, расчётный спрос уменьшается по степенной зависимости; если цена снижается — растёт, но не выше продаваемой вместимости.</p>
+            <pre>Новый спрос = базовый спрос × (итоговая цена / базовая цена)^(-ε)</pre>
+            <p>При ε = 0 спрос не реагирует на цену. Чем выше ε, тем сильнее реакция. При высокой эластичности целевая сумма может иметь несколько решений или быть недостижимой; программа сообщает об этом.</p>
+          </div>
+        </details>
+        <details class="help-item">
+          <summary>Структура выручки</summary>
+          <div>
+            <ul>
+              <li><strong>Номинальная билетная выручка:</strong> цена билета без сервисного сбора × продажи.</li>
+              <li><strong>Сервисные сборы покупателей:</strong> фиксированный сбор × продажи.</li>
+              <li><strong>Всего заплатят покупатели:</strong> билетная выручка + сервисные сборы.</li>
+              <li><strong>Комиссия платформы:</strong> процент от билетной выручки + фиксированная комиссия за билет.</li>
+              <li><strong>Организатору до налогов:</strong> билетная выручка + принадлежащие организатору сборы − комиссия платформы.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal confirm-modal">
+      <div class="modal-header">
+        <div><h2 id="confirmTitle">Подтверждение</h2><p id="confirmMessage">Продолжить?</p></div>
+      </div>
+      <div class="modal-actions">
+        <button id="confirmCancelBtn" class="btn btn-secondary" type="button">Отмена</button>
+        <button id="confirmOkBtn" class="btn btn-danger" type="button">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

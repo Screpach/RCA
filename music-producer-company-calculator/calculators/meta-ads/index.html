@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Empirical Instagram advertising forecast calculator calibrated from Barcelona Ads Manager measurements.">
+  <title>Producer OS — Audience & Meta Ads</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="data.js"></script>
+  <script defer src="model.js"></script>
+  <script defer src="charts.js"></script>
+  <script defer src="tests.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <header class="header">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">IG</div>
+      <div><h1 data-i18n="title">Instagram Ad Forecast</h1><p class="subtitle" data-i18n="subtitle">Эмпирическая модель Barcelona</p></div>
+    </div>
+    <div class="header-actions">
+      <select id="language" aria-label="Language"><option value="ru">RU</option><option value="en">EN</option><option value="es">ES</option></select>
+      <button class="btn secondary-mobile" id="copyBtn" data-i18n="copy">Скопировать сценарий</button>
+      <button class="btn" id="resetBtn" data-i18n="reset">Сбросить</button>
+      <button class="btn" id="csvBtn">CSV</button>
+      <button class="btn primary" id="xlsxBtn">XLSX</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel controls" aria-label="Campaign controls">
+      <section class="section">
+        <div class="section-title"><h2>Платформа</h2><span>Instagram only</span></div>
+        <div class="check-row"><div class="mark small-mark">IG</div><div><strong>Instagram</strong><small>Facebook удалён из модели и интерфейса.</small></div></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><h2>Аудитория Barcelona</h2><span>Без верхних лимитов</span></div>
+        <div class="field">
+          <label for="radius">Радиус</label>
+          <div class="suffix"><input id="radius" type="number" min="0" step="0.1" value="15" inputmode="decimal"><span>км</span></div>
+          <div class="help">1–30 км измерены. Выше 30 км используется насыщаемая кривая.</div><div class="error" id="error-radius" hidden></div>
+        </div>
+        <div class="field">
+          <label for="audienceCurve">Кривая аудитории</label>
+          <select id="audienceCurve"><option value="saturation">Saturation fit — рекомендуется</option><option value="isotonic">Isotonic — монотонное очищение</option><option value="raw">Raw — исходные колебания</option></select>
+        </div>
+        <div class="field">
+          <label for="breadth">Ширина аудитории</label>
+          <select id="breadth"><option value="0.75">Narrow — 75%</option><option value="1" selected>Baseline — 100%</option><option value="1.25">Broad — 125%</option><option value="1.5">Very broad — 150%</option></select>
+        </div>
+        <div class="two">
+          <div class="field"><label for="ageMin">Возраст от</label><select id="ageMin"></select><div class="error" id="error-ageMin" hidden></div></div>
+          <div class="field"><label for="ageMax">Возраст до</label><select id="ageMax"></select><div class="error" id="error-ageMax" hidden></div></div>
+        </div>
+        <div class="field"><span class="label">Пол</span><div class="seg" id="genderControl"><button type="button" data-value="all" aria-pressed="false">Все</button><button type="button" data-value="women" class="active" aria-pressed="true">Женщины</button><button type="button" data-value="men" aria-pressed="false">Мужчины</button></div></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><h2>Бюджет и срок</h2><span>Без верхних лимитов</span></div>
+        <div class="two">
+          <div class="field"><label for="budget">Дневная сумма</label><div class="prefix"><span>€</span><input id="budget" type="number" min="0" step="0.01" value="25" inputmode="decimal"></div><div class="error" id="error-budget" hidden></div></div>
+          <div class="field"><label for="duration">Продолжительность</label><div class="suffix"><input id="duration" type="number" min="1" step="1" value="15" inputmode="numeric"><span>дней</span></div><div class="error" id="error-duration" hidden></div></div>
+        </div>
+        <div class="field"><label for="budgetMeaning">Что означает введённая сумма</label><select id="budgetMeaning"><option value="media">Media spend — бюджет, который получает реклама</option><option value="total">Maximum total payment — весь денежный лимит</option></select></div>
+        <div class="field"><label for="modelMode">Обработка delivery-данных</label><select id="modelMode"><option value="robust">Robust weighted — рекомендуется</option><option value="raw">Raw radius interpolation</option></select></div>
+        <label class="check-row"><input id="autoExclude" type="checkbox" checked><span><strong>Автоматически исключать выбросы</strong><small>Ручные решения в таблице данных имеют приоритет.</small></span></label>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><h2>Оплата и испанский IVA</h2><span>Barcelona / Spain</span></div>
+        <div class="field"><label for="paymentRoute">Маршрут оплаты</label><select id="paymentRoute"><option value="browser">Ads Manager / browser — без Apple fee</option><option value="ios">Instagram iOS app — 30% service fee</option></select></div>
+        <div class="field"><label for="taxProfile">Налоговый профиль</label><select id="taxProfile"><option value="business">Испанская компания с EU VAT ID — reverse charge</option><option value="consumer">Без действующего VAT ID / consumer — 21% IVA cash</option><option value="custom">Пользовательская ставка</option></select></div>
+        <div class="field" id="customTaxWrap" hidden><label for="customTax">Пользовательский налог</label><div class="suffix"><input id="customTax" type="number" min="0" step="0.1" value="21"><span>%</span></div><div class="error" id="error-customTax" hidden></div></div>
+        <div class="help">Reverse charge показывает бухгалтерский IVA отдельно, но не добавляет его к cash payment. Проверьте режим с бухгалтером.</div>
+      </section>
+
+
+      <section class="section">
+        <div class="section-title"><h2>Business outcomes</h2><span>Отдельно от Meta forecast</span></div>
+        <label class="check-row"><input id="businessOutcomes" type="checkbox"><span><strong>Рассчитать продажи</strong><small>Использует заданную конверсию посещения в покупку; это не прогноз Meta.</small></span></label>
+        <div id="businessFields" hidden>
+          <div class="two business-fields-grid">
+            <div class="field"><label for="conversionRate">Visit → purchase</label><div class="suffix"><input id="conversionRate" type="number" min="0" step="0.01" value="1.8"><span>%</span></div><div class="error" id="error-conversionRate" hidden></div></div>
+            <div class="field"><label for="ticketPrice">Цена покупки</label><div class="prefix"><span>€</span><input id="ticketPrice" type="number" min="0" step="0.01" value="100"></div><div class="error" id="error-ticketPrice" hidden></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="section">
+        <label class="check-row"><input id="exactNumbers" type="checkbox" checked><span><strong>Показывать точные числа</strong><small>При выключении крупные значения сокращаются.</small></span></label>
+      </section>
+    </aside>
+
+    <section class="panel results">
+      <div class="result-head">
+        <div><h2 id="forecastTitle">15 дней · Instagram</h2><p id="forecastSub">Barcelona · 15 км</p></div>
+        <div class="badges"><span class="badge" id="audienceBadge">Audience</span><span class="badge" id="deliveryBadge">Delivery</span><span class="badge" id="uncertaintyBadge">Uncertainty</span></div>
+      </div>
+      <div class="warning" id="warningBox" hidden></div>
+
+      <nav class="tabs" aria-label="Result sections">
+        <button type="button" class="active" data-tab="forecastPane" data-i18n="forecast">Прогноз</button>
+        <button type="button" data-tab="chartsPane" data-i18n="charts">Графики</button>
+        <button type="button" data-tab="dataPane" data-i18n="formulas">Данные и формулы</button>
+      </nav>
+
+      <section class="tab-pane" id="forecastPane">
+        <div class="metrics">
+          <article class="metric"><span class="metric-label" data-i18n="audience">Аудитория</span><div class="metric-value" id="audienceValue">—</div><div class="metric-meta" id="audienceMeta">—</div></article>
+          <article class="metric"><span class="metric-label" data-i18n="impressions">Показы</span><div class="metric-value" id="impressionsValue">—</div><div class="metric-meta" id="impressionsMeta">—</div></article>
+          <article class="metric"><span class="metric-label" data-i18n="visits">Посещения сайта</span><div class="metric-value" id="visitsValue">—</div><div class="metric-meta" id="visitsMeta">—</div></article>
+          <article class="metric fee"><span class="metric-label" data-i18n="fee">Комиссия сервиса</span><div class="metric-value" id="feeValue">—</div><div class="metric-meta" id="feeMeta">—</div></article>
+        </div>
+        <div class="insights">
+          <div class="insight"><span>Media spend</span><strong id="mediaSpend">—</strong></div>
+          <div class="insight"><span>Cash IVA</span><strong id="cashTax">—</strong></div>
+          <div class="insight"><span>Accounting IVA</span><strong id="accountingVat">—</strong></div>
+          <div class="insight"><span>Total cash</span><strong id="totalPayment">—</strong></div>
+          <div class="insight"><span>Implied CPM</span><strong id="cpm">—</strong></div>
+          <div class="insight"><span>Cost per visit</span><strong id="cpv">—</strong></div>
+          <div class="insight"><span>Estimated reach</span><strong id="reach">—</strong></div>
+          <div class="insight"><span>Repeat impression share</span><strong id="repeatShare">—</strong></div>
+          <div class="insight"><span>Frequency</span><strong id="frequency">—</strong></div>
+          <div class="insight"><span>Delivery retained</span><strong id="saturation">—</strong></div>
+        </div>
+        <div class="business-result" id="businessResult" hidden>
+          <h3>Business outcome scenario</h3>
+          <div class="insights"><div class="insight"><span>Purchases range</span><strong id="purchases">—</strong></div><div class="insight"><span>Revenue range</span><strong id="revenue">—</strong></div><div class="insight"><span>Base CPA</span><strong id="purchaseCpa">—</strong></div><div class="insight"><span>Base ROAS</span><strong id="roas">—</strong></div></div>
+          <p class="help">Pessimistic = 60% of entered conversion; optimistic = 150%. This is a business assumption, not an Ads Manager estimate.</p>
+        </div>
+        <div class="footer">Main numbers use the planning forecast. Empirical reproduction remains visible underneath and in the charts.</div>
+      </section>
+
+      <section class="tab-pane" id="chartsPane" hidden>
+        <div class="chart-grid">
+          <article class="chart-card wide"><div class="chart-header"><div><h3>Delivery over time</h3><p>Planning band, empirical reference and website visits.</p></div><div class="chart-actions"><button class="btn small" data-chart-export="png" data-target="forecastPlot">PNG</button><button class="btn small" data-chart-export="svg" data-target="forecastPlot">SVG</button></div></div><div class="plot" id="forecastPlot"></div><details class="data-details"><summary>Таблица данных</summary><div class="table-wrap" id="forecastData"></div></details></article>
+          <article class="chart-card"><div class="chart-header"><div><h3>Budget response</h3><p>Dynamic range, weighted trend, anchors and current reference.</p></div><div class="chart-actions"><button class="btn small" data-chart-export="png" data-target="budgetPlot">PNG</button><button class="btn small" data-chart-export="svg" data-target="budgetPlot">SVG</button></div></div><div class="plot" id="budgetPlot"></div><details class="data-details"><summary>Таблица данных</summary><div class="table-wrap" id="budgetData"></div></details></article>
+          <article class="chart-card"><div class="chart-header"><div><h3>Website visits response</h3><p>Current model and weighted trend line.</p></div><div class="chart-actions"><button class="btn small" data-chart-export="png" data-target="visitsPlot">PNG</button><button class="btn small" data-chart-export="svg" data-target="visitsPlot">SVG</button></div></div><div class="plot" id="visitsPlot"></div><details class="data-details"><summary>Таблица данных</summary><div class="table-wrap" id="visitsData"></div></details></article>
+          <article class="chart-card wide"><div class="chart-header"><div><h3>Audience by radius</h3><p>Raw points, isotonic correction, saturation fit and measured zone.</p></div><div class="chart-actions"><button class="btn small" data-chart-export="png" data-target="audiencePlot">PNG</button><button class="btn small" data-chart-export="svg" data-target="audiencePlot">SVG</button></div></div><div class="plot" id="audiencePlot"></div><details class="data-details"><summary>Таблица данных</summary><div class="table-wrap" id="audienceData"></div></details></article>
+          <article class="chart-card wide"><div class="chart-header"><div><h3>Frequency saturation</h3><p>Smooth penalty after raw frequency exceeds the 4× reference.</p></div><div class="chart-actions"><button class="btn small" data-chart-export="png" data-target="frequencyPlot">PNG</button><button class="btn small" data-chart-export="svg" data-target="frequencyPlot">SVG</button></div></div><div class="plot" id="frequencyPlot"></div><details class="data-details"><summary>Таблица данных</summary><div class="table-wrap" id="frequencyData"></div></details></article>
+        </div>
+      </section>
+
+      <section class="tab-pane" id="dataPane" hidden>
+        <div class="formula-grid">
+          <article class="formula-card"><h3>1. Audience saturation</h3><code class="eq">A(r) = L × [1 − exp(−(r / s)^k)]
+
+Min: L=211,402.743; s=8.378526; k=0.862818
+Max: L=248,646.342; s=8.372927; k=0.863133</code><p>Raw and isotonic curves remain visible. The fitted curve is used beyond 30 km.</p></article>
+          <article class="formula-card"><h3>2. Budget interpolation and extrapolation</h3><code class="eq">Empirical(B) = piecewise-linear(active anchors)
+
+Planning(B) = 0.92 × Empirical(B)
+            + 0.08 × WeightedPowerFit(B)
+
+At €50: 0.95 / 0.05
+
+B &gt; €100:
+F(B) = F(100) × (B / 100)^e</code><p>The €50 anchor remains in the data but receives weight 0.45 in the smooth trend; other budgets receive weight 1.00.</p></article>
+          <article class="formula-card"><h3>3. Long-duration fatigue</h3><code class="eq">For D &gt; 30:
+EffectiveExtraDays = 30/f × ln(1 + f × (D−30)/30)
+
+Total(D) = Total(30)
+         + DailyRate30 × EffectiveExtraDays</code><p>f = 0.55 for impressions and 0.72 for visits. The function grows without a hard limit but with diminishing marginal delivery.</p></article>
+          <article class="formula-card"><h3>4. Frequency saturation</h3><code class="eq">If FrequencyRaw ≤ 4:
+S = 1
+
+Otherwise:
+S = 1 / [1 + ((FrequencyRaw−4)/11)^0.55]
+
+Planning impressions = Raw planning × S
+Planning visits = Raw planning × S^0.72</code><p>This keeps the empirical reproduction visible while producing a separate planning forecast for small audiences and long campaigns.</p></article>
+          <article class="formula-card"><h3>5. Demographic extrapolation</h3><code class="eq">Audience = RadiusAudience
+         × AgeMass / AgeMass(18–36)
+         × GenderFactor
+         × Breadth
+
+Gender factors:
+Women=1; Men=45.7/54.3; All=100/54.3</code><p>These coefficients are retained by request and remain extrapolations, not measured audience data.</p></article>
+          <article class="formula-card"><h3>6. Apple fee and Spanish IVA</h3><code class="eq">iOS, media-spend input:
+PreTaxPayment = MediaSpend / 0.70
+ServiceFee = PreTaxPayment − MediaSpend
+
+Consumer/no VAT ID:
+Cash IVA = PreTaxPayment × 21%
+
+Business with valid EU VAT ID:
+Cash IVA = 0
+Accounting IVA = PreTaxPayment × 21%</code><p>Displayed service fee, cash IVA and total cash are rounded upward to whole euros.</p></article>
+        </div>
+
+        <h3>Active daily anchors</h3>
+        <div class="table-wrap"><table><thead><tr><th>Budget</th><th>Min imp./day</th><th>Max imp./day</th><th>Visits/day</th><th>Trend weight</th></tr></thead><tbody id="anchorTable"></tbody></table></div>
+
+        <div class="data-toolbar">
+          <button class="btn" id="importBtn">Import JSON/CSV</button><input id="dataFile" type="file" accept=".json,.csv,text/csv,application/json" hidden>
+          <button class="btn" id="exportDataBtn">Export measurements JSON</button>
+          <button class="btn" id="testBtn">Run self-tests</button><span id="testStatus"></span>
+        </div>
+        <p class="help">CSV columns: radius, budget, duration, min, max, visits. Manual metric toggles below override automatic outlier detection.</p>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Radius</th><th>Budget</th><th>Days</th><th>Min</th><th>Max</th><th>Visits</th><th>Active metrics</th></tr></thead><tbody id="dataTable"></tbody></table></div>
+
+        <h3>Sources and model provenance</h3>
+        <ul class="source-list">
+          <li><a href="https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/prestaciones-servicios.html" target="_blank" rel="noreferrer">Agencia Tributaria — cross-border services and reverse charge</a></li>
+          <li><a href="https://www.facebook.com/business/help/155641834501332" target="_blank" rel="noreferrer">Meta — VAT information</a></li>
+          <li><a href="https://www.facebook.com/help/instagram/898715828241123?locale=en_GB" target="_blank" rel="noreferrer">Meta — Apple service fee for Instagram iOS boosts</a></li>
+        </ul>
+        <div class="footer"><strong>Changelog 3.0.0:</strong> Facebook removed; all upper clamps removed; dynamic extrapolation, fatigue and saturation added; raw/isotonic/saturation audience curves; automated and manual outlier handling; Spanish tax profiles; exact/compact numbers; accessible SVG charts with tooltips, reference lines and data tables; CSV/XLSX/PNG/SVG exports; URL sharing, local persistence and self-tests.</div>
+      </section>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr-only" id="liveRegion" aria-live="polite"></div>
+</body>
+</html>

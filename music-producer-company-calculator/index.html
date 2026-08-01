@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="All-in-one music producer company calculator for production economics, ticket pricing, venue planning and Meta advertising forecasts.">
+  <meta name="color-scheme" content="dark light">
+  <title>Producer OS — Company Calculator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">P</div>
+        <div>
+          <p class="brand-kicker">Music business toolkit</p>
+          <h1>Producer OS</h1>
+        </div>
+      </div>
+
+      <nav class="primary-nav" aria-label="Main navigation">
+        <button class="nav-item is-active" type="button" data-view="dashboard" aria-current="page">
+          <span class="nav-icon" aria-hidden="true">⌂</span>
+          <span><strong>Company overview</strong><small>Roll-up and workflow</small></span>
+        </button>
+        <button class="nav-item" type="button" data-view="ads">
+          <span class="nav-number">01</span>
+          <span><strong>Audience & ads</strong><small>Meta campaign forecast</small></span>
+        </button>
+        <button class="nav-item" type="button" data-view="tickets">
+          <span class="nav-number">02</span>
+          <span><strong>Hall & ticketing</strong><small>Zones, prices and revenue</small></span>
+        </button>
+        <button class="nav-item" type="button" data-view="stage">
+          <span class="nav-number">03</span>
+          <span><strong>Production economics</strong><small>Costs and break-even</small></span>
+        </button>
+      </nav>
+
+      <div class="sidebar-note">
+        <span class="status-dot"></span>
+        <p><strong>Local-first</strong><br>Calculator data stays in this browser.</p>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <div class="topbar-title">
+          <button class="icon-button mobile-menu" id="menuBtn" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
+          <div>
+            <p id="viewEyebrow">Executive planning</p>
+            <h2 id="viewTitle">Company overview</h2>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button class="toolbar-button is-hidden" id="reloadBtn" type="button">Reload module</button>
+          <button class="toolbar-button is-hidden" id="newTabBtn" type="button">Open separately</button>
+          <button class="toolbar-button is-hidden" id="fullscreenBtn" type="button">Focus mode</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <section class="view dashboard-view is-active" id="view-dashboard" data-view-panel="dashboard">
+          <div class="hero-panel">
+            <div>
+              <p class="eyebrow">All-in-one planning workspace</p>
+              <h2>Plan the campaign, price the room, and test the production.</h2>
+              <p>Use the specialist calculators in sequence, then place their headline figures into the company roll-up for a single commercial view.</p>
+            </div>
+            <div class="hero-badge">
+              <span>3</span>
+              <small>specialist<br>calculators</small>
+            </div>
+          </div>
+
+          <section class="workflow-grid" aria-label="Planning workflow">
+            <article class="workflow-card">
+              <div class="workflow-head"><span>01</span><p>Demand</p></div>
+              <h3>Forecast advertising delivery</h3>
+              <p>Estimate Instagram reach, impressions, visits, fees, IVA and campaign saturation.</p>
+              <button type="button" data-open-view="ads">Open audience calculator</button>
+            </article>
+            <article class="workflow-card">
+              <div class="workflow-head"><span>02</span><p>Monetization</p></div>
+              <h3>Design the ticket structure</h3>
+              <p>Configure hall zones, capacities, occupancy, ticket prices, service fees and revenue.</p>
+              <button type="button" data-open-view="tickets">Open ticket calculator</button>
+            </article>
+            <article class="workflow-card">
+              <div class="workflow-head"><span>03</span><p>Viability</p></div>
+              <h3>Model production economics</h3>
+              <p>Calculate venue, artists, rehearsals, marketing, commissions, break-even and scenarios.</p>
+              <button type="button" data-open-view="stage">Open economics calculator</button>
+            </article>
+          </section>
+
+          <section class="rollup-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Company roll-up</p>
+                <h2>Executive profit calculator</h2>
+                <p>Enter the headline outputs from the three modules. Values are saved automatically in this browser.</p>
+              </div>
+              <div class="heading-actions">
+                <button class="subtle-button" id="exportSummaryBtn" type="button">Export summary</button>
+                <button class="subtle-button danger" id="resetSummaryBtn" type="button">Reset</button>
+              </div>
+            </div>
+
+            <div class="rollup-layout">
+              <form class="rollup-form" id="rollupForm">
+                <label class="field field-wide">
+                  <span>Project / event name</span>
+                  <input id="projectName" name="projectName" type="text" value="New production" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span>Ticket revenue</span>
+                  <div class="money-input"><b>€</b><input id="ticketRevenue" name="ticketRevenue" type="number" min="0" step="0.01" value="75000"></div>
+                </label>
+                <label class="field">
+                  <span>Other income / sponsorship</span>
+                  <div class="money-input"><b>€</b><input id="otherIncome" name="otherIncome" type="number" min="0" step="0.01" value="0"></div>
+                </label>
+                <label class="field">
+                  <span>Production costs</span>
+                  <div class="money-input"><b>€</b><input id="productionCosts" name="productionCosts" type="number" min="0" step="0.01" value="42000"></div>
+                </label>
+                <label class="field">
+                  <span>Advertising costs</span>
+                  <div class="money-input"><b>€</b><input id="advertisingCosts" name="advertisingCosts" type="number" min="0" step="0.01" value="6000"></div>
+                </label>
+                <label class="field">
+                  <span>Company overhead</span>
+                  <div class="money-input"><b>€</b><input id="companyOverhead" name="companyOverhead" type="number" min="0" step="0.01" value="3500"></div>
+                </label>
+                <label class="field">
+                  <span>Contingency</span>
+                  <div class="money-input suffix"><input id="contingencyPercent" name="contingencyPercent" type="number" min="0" step="0.1" value="8"><b>%</b></div>
+                </label>
+                <label class="field">
+                  <span>Tax reserve on profit</span>
+                  <div class="money-input suffix"><input id="taxReservePercent" name="taxReservePercent" type="number" min="0" max="100" step="0.1" value="20"><b>%</b></div>
+                </label>
+                <label class="field">
+                  <span>Average paid ticket</span>
+                  <div class="money-input"><b>€</b><input id="averageTicketPrice" name="averageTicketPrice" type="number" min="0" step="0.01" value="65"></div>
+                </label>
+              </form>
+
+              <div class="results-column" aria-live="polite">
+                <div class="primary-result" id="profitResultCard">
+                  <span>Estimated net profit</span>
+                  <strong id="netProfit">€0</strong>
+                  <small id="profitSignal">—</small>
+                </div>
+                <div class="metric-grid">
+                  <div class="metric"><span>Total revenue</span><strong id="totalRevenue">€0</strong></div>
+                  <div class="metric"><span>Cost base</span><strong id="baseCosts">€0</strong></div>
+                  <div class="metric"><span>Contingency</span><strong id="contingencyAmount">€0</strong></div>
+                  <div class="metric"><span>Pre-tax profit</span><strong id="preTaxProfit">€0</strong></div>
+                  <div class="metric"><span>Profit margin</span><strong id="profitMargin">0%</strong></div>
+                  <div class="metric"><span>Return on cost</span><strong id="returnOnCost">0%</strong></div>
+                  <div class="metric"><span>Break-even revenue</span><strong id="breakEvenRevenue">€0</strong></div>
+                  <div class="metric"><span>Break-even tickets</span><strong id="breakEvenTickets">—</strong></div>
+                </div>
+                <div class="cost-bar" aria-label="Revenue allocation">
+                  <div class="cost-bar-track"><span id="costBarFill"></span></div>
+                  <div class="cost-bar-labels"><span>Costs + contingency</span><strong id="costShare">0% of revenue</strong></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="view module-view" id="view-ads" data-view-panel="ads">
+          <div class="frame-loader" data-loader="ads"><span></span><p>Loading audience calculator…</p></div>
+          <iframe title="Audience and Meta advertising calculator" data-module-frame="ads" data-src="calculators/meta-ads/index.html"></iframe>
+        </section>
+
+        <section class="view module-view" id="view-tickets" data-view-panel="tickets">
+          <div class="frame-loader" data-loader="tickets"><span></span><p>Loading hall and ticket calculator…</p></div>
+          <iframe title="Hall and ticket pricing calculator" data-module-frame="tickets" data-src="calculators/hall-tickets/index.html"></iframe>
+        </section>
+
+        <section class="view module-view" id="view-stage" data-view-panel="stage">
+          <div class="frame-loader" data-loader="stage"><span></span><p>Loading production economics calculator…</p></div>
+          <iframe title="Stage production economics calculator" data-module-frame="stage" data-src="calculators/stage-economics/index.html"></iframe>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="mobile-scrim" id="mobileScrim"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+Recommended production HTTP header:
+
+Content-Security-Policy: default-src 'self' data: blob:; style-src 'self'; script-src 'self'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+Do not add this as a meta tag when opening the app directly from file://. Serve the folder over HTTPS and configure the header at the web server/CDN.
